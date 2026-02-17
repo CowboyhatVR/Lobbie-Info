@@ -30,5 +30,15 @@ This repository contains the source code.
 If you only want the mod, download it from **Releases**.
 
 ---
+## Building
+
+1. Install Visual Studio 2022 (.NET desktop development)
+2. Put your Gorilla Tag path in the csproj references
+3. Build in Release mode
+
+The compiled DLL will appear in:
+bin/Release/net472/
+
+---
 
 Created by CowboyHatVR
