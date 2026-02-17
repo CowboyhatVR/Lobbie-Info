@@ -1,62 +1,71 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net472</TargetFramework>
-    <LangVersion>latest</LangVersion>
-  </PropertyGroup>
+using BepInEx;
+using UnityEngine;
+using Photon.Pun;
+using Photon.Realtime;
 
-  <ItemGroup>
-    <!-- BepInEx 5 -->
-    <Reference Include="BepInEx">
-      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Gorilla Tag\BepInEx\core\BepInEx.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
+[BepInPlugin("com.cowboyhatvr.lobbyinfo", "Lobby Info", "1.0.1")]
+public class Plugin : BaseUnityPlugin
+{
+    private GameObject textObj;
+    private TextMesh textMesh;
 
-    <!-- Unity modules (Unity 6) -->
-    <Reference Include="UnityEngine.CoreModule">
-      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Gorilla Tag\Gorilla Tag_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
+    void Start()
+    {
+        Logger.LogInfo("Lobby Info loaded!");
+        CreateText();
+    }
 
-    <Reference Include="UnityEngine.IMGUIModule">
-      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Gorilla Tag\Gorilla Tag_Data\Managed\UnityEngine.IMGUIModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
+    void CreateText()
+    {
+        textObj = new GameObject("LobbyInfo_Text");
+        textMesh = textObj.AddComponent<TextMesh>();
 
-    <Reference Include="UnityEngine.TextRenderingModule">
-      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Gorilla Tag\Gorilla Tag_Data\Managed\UnityEngine.TextRenderingModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
+        textMesh.fontSize = 40;
+        textMesh.characterSize = 0.02f;
+        textMesh.anchor = TextAnchor.LowerCenter;
+        textMesh.alignment = TextAlignment.Center;
+        textMesh.color = Color.white;
+    }
 
-    <Reference Include="UnityEngine.SharedInternalsModule">
-      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Gorilla Tag\Gorilla Tag_Data\Managed\UnityEngine.SharedInternalsModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
+    void Update()
+    {
+        if (textObj == null || textMesh == null) return;
 
-    <Reference Include="UnityEngine.PropertiesModule">
-      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Gorilla Tag\Gorilla Tag_Data\Managed\UnityEngine.PropertiesModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
+        // Beste camera pakken (werkt beter in VR én soms in flatscreen)
+        Camera cam = Camera.main;
+        if (cam == null)
+        {
+            var cams = Camera.allCameras;
+            for (int i = 0; i < cams.Length; i++)
+            {
+                if (cams[i] != null && cams[i].isActiveAndEnabled)
+                {
+                    cam = cams[i];
+                    break;
+                }
+            }
+        }
+        if (cam == null) return;
 
-    <!-- Photon -->
-    <Reference Include="Photon3Unity3D">
-      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Gorilla Tag\Gorilla Tag_Data\Managed\Photon3Unity3D.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
+        Transform ct = cam.transform;
 
-    <Reference Include="PhotonRealtime">
-      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Gorilla Tag\Gorilla Tag_Data\Managed\PhotonRealtime.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
+        // Positie onderin je zicht (VR-friendly)
+        textObj.transform.position = ct.position + ct.forward * 1.5f - ct.up * 0.6f;
+        textObj.transform.rotation = Quaternion.LookRotation(textObj.transform.position - ct.position);
 
-    <Reference Include="PhotonUnityNetworking">
-      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Gorilla Tag\Gorilla Tag_Data\Managed\PhotonUnityNetworking.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
+        // Tekst inhoud
+        if (!PhotonNetwork.InRoom || PhotonNetwork.CurrentRoom == null)
+        {
+            textMesh.text = "Not in lobby";
+            return;
+        }
 
-    <!-- UnityEngine shim -->
-    <Reference Include="UnityEngine">
-      <HintPath>..\UnityEngineShim\bin\Release\net472\UnityEngine.dll</HintPath>
-      <Private>true</Private>
-    </Reference>
-  </ItemGroup>
-</Project>
+        Room r = PhotonNetwork.CurrentRoom;
+
+        string lobbyName = string.IsNullOrEmpty(r.Name) ? "(unknown)" : r.Name;
+        string privacy = r.IsVisible ? "Public" : "Private";
+        string players = $"{r.PlayerCount}/{r.MaxPlayers}";
+
+        textMesh.text = $"Lobby: {lobbyName}\n{privacy} | Players: {players}";
+    }
+}
