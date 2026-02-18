@@ -2,17 +2,22 @@ using BepInEx;
 using UnityEngine;
 using Photon.Pun;
 using Photon.Realtime;
+using UnityEngine.XR;
 
-[BepInPlugin("com.cowboyhatvr.lobbyinfo", "Lobby Info", "1.0.1")]
+[BepInPlugin("com.cowboyhatvr.lobbyinfo", "Lobby Info", "1.0.3")]
 public class Plugin : BaseUnityPlugin
 {
     private GameObject textObj;
     private TextMesh textMesh;
 
+    private bool hudEnabled = true;
+    private bool comboWasHeld = false;
+
     void Start()
     {
         Logger.LogInfo("Lobby Info loaded!");
         CreateText();
+        SetHudVisible(hudEnabled);
     }
 
     void CreateText()
@@ -29,9 +34,20 @@ public class Plugin : BaseUnityPlugin
 
     void Update()
     {
+        // VR combo toggle
+        bool comboHeld = IsToggleComboHeld();
+        if (comboHeld && !comboWasHeld)
+        {
+            hudEnabled = !hudEnabled;
+            SetHudVisible(hudEnabled);
+            Logger.LogInfo($"Lobby Info HUD: {(hudEnabled ? "ON" : "OFF")}");
+        }
+        comboWasHeld = comboHeld;
+
+        if (!hudEnabled) return;
         if (textObj == null || textMesh == null) return;
 
-        // Beste camera pakken (werkt beter in VR én soms in flatscreen)
+        // Beste camera pakken
         Camera cam = Camera.main;
         if (cam == null)
         {
@@ -49,11 +65,11 @@ public class Plugin : BaseUnityPlugin
 
         Transform ct = cam.transform;
 
-        // Positie onderin je zicht (VR-friendly)
+        // Onderin zicht
         textObj.transform.position = ct.position + ct.forward * 1.5f - ct.up * 0.6f;
         textObj.transform.rotation = Quaternion.LookRotation(textObj.transform.position - ct.position);
 
-        // Tekst inhoud
+        // Lobby info
         if (!PhotonNetwork.InRoom || PhotonNetwork.CurrentRoom == null)
         {
             textMesh.text = "Not in lobby";
@@ -61,11 +77,39 @@ public class Plugin : BaseUnityPlugin
         }
 
         Room r = PhotonNetwork.CurrentRoom;
-
         string lobbyName = string.IsNullOrEmpty(r.Name) ? "(unknown)" : r.Name;
         string privacy = r.IsVisible ? "Public" : "Private";
         string players = $"{r.PlayerCount}/{r.MaxPlayers}";
 
         textMesh.text = $"Lobby: {lobbyName}\n{privacy} | Players: {players}";
+    }
+
+    private void SetHudVisible(bool visible)
+    {
+        if (textObj != null)
+            textObj.SetActive(visible);
+    }
+
+    private bool IsToggleComboHeld()
+    {
+        // LEFT: both face buttons (primary + secondary)
+        // RIGHT: joystick down (axis.y < -0.7)
+
+        var left = InputDevices.GetDeviceAtXRNode(XRNode.LeftHand);
+        var right = InputDevices.GetDeviceAtXRNode(XRNode.RightHand);
+
+        if (!left.isValid || !right.isValid) return false;
+
+        bool leftPrimary = false;
+        bool leftSecondary = false;
+        left.TryGetFeatureValue(CommonUsages.primaryButton, out leftPrimary);
+        left.TryGetFeatureValue(CommonUsages.secondaryButton, out leftSecondary);
+
+        Vector2 rightStick = Vector2.zero;
+        right.TryGetFeatureValue(CommonUsages.primary2DAxis, out rightStick);
+
+        bool rightDown = rightStick.y < -0.7f;
+
+        return leftPrimary && leftSecondary && rightDown;
     }
 }
