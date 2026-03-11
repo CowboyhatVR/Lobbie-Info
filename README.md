@@ -4,7 +4,7 @@ Adds a small on-screen info display (HUD — heads-up display) at the bottom of 
 
 ## Shows
 - Lobby name
-- Public or Private
+- Public or Private ( gamemodes (infection, casual etc.))
 - Player count
 
 No gameplay changes — just useful info while you play.
