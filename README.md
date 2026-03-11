@@ -1,3 +1,5 @@
+![Downloads](https://img.shields.io/github/downloads/CowboyHatVR/LobbyHUD/total)
+
 # Important: THIS MOD IS ONLY FOR MELONLOADER (FOR NOW)
 
 # Lobby Info
